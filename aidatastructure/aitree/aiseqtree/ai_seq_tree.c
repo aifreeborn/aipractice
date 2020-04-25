@@ -3,7 +3,7 @@
  *
  *       Filename:  ai_seq_tree.c
  *
- *    Description:  
+ *    Description:  二叉树的顺序存储结构  
  *
  *        Version:  1.0
  *        Created:  04/25/2020 05:25:43 PM
