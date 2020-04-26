@@ -1,6 +1,6 @@
 AI_OBJ := ai_seq_tree
 AI_COMPLIER := gcc
-AI_CFLAGS := -Wall
+AI_CFLAGS := -Wall -lm
 
 .PHONY : clean
 all:$(AI_OBJ)

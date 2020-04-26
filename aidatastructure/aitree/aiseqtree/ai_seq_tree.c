@@ -17,6 +17,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 
 #define MAX_TREE_SIZE 100
@@ -61,7 +62,7 @@ int seq_bitree_create(seq_bitree_t t)
     while ('\n' != (ch = getchar())) {
         t[i] = ch;
         if (i != 0 && t[(i + 1) / 2 - 1] == Nil && t[i] != Nil) {
-           printf("出现无双亲的非根结点%d\n", t[i]);
+           printf("出现无双亲的非根结点%c\n", t[i]);
            exit(0);
         }
         i++;
@@ -76,7 +77,74 @@ int seq_bitree_create(seq_bitree_t t)
     return cnt;
 }
 
+#define seq_bitree_clear seq_bitree_init
+
+
+int seq_bitree_is_empty(seq_bitree_t t)
+{
+    if (Nil == t[0])
+        return 1;
+    else
+        return 0;
+}
+
+int seq_bitree_get_depth(seq_bitree_t t)
+{
+    int i, j = -1;
+
+    for (i = MAX_TREE_SIZE - 1; i >= 0; i--) {
+        if (Nil != t[i])
+            break;
+    }
+    i++;
+    do {
+        j++;
+    } while(i >= powl(2, j));
+
+    return j;
+}
+
+int seq_bitree_get_root(seq_bitree_t t, elem_t *e)
+{
+    if (1 == seq_bitree_is_empty(t)) {
+        return -1;
+    } else {
+        *e = t[0];
+        return 0;
+    }
+}
+
+elem_t seq_bitree_get_value(seq_bitree_t t, position_t pos)
+{
+    int i = 0;
+
+    i = (int)powl(2, pos.level - 1) -1 + pos.order;
+    return t[i - 1];
+}
+
+elem_t seq_bitree_get_parent(seq_bitree_t t, elem_t e)
+{
+    int i;
+
+    if (t[0] == Nil)
+        return Nil;
+    for (i = 1; i < MAX_TREE_SIZE; i++)
+        if (t[i] == e)
+            return t[(i + 1) / 2 - 1];
+    return Nil;
+}
 /************************************ main ************************************/
+/*   
+ *  使用的树为:
+ *                A
+ *             /     \
+ *            B       C
+ *          /   \    / \
+ *         #     D  E   #
+ *        / \   /
+ *       #   # F
+ *  按层序创建bitree的输入为: ABC#DE###F
+ */
 int main(int argc, char *argv[])
 {
     seq_bitree_t t;
@@ -85,5 +153,14 @@ int main(int argc, char *argv[])
     seq_bitree_init(t);
     cnt = seq_bitree_create(t);
     seq_bitree_print(t, cnt);
+    printf("树的深度depth = %d\n", seq_bitree_get_depth(t));
+
+    position_t pos = {
+        .level = 3,
+        .order = 3
+    };
+    printf("第3层第3个节点的值为: %c\n", seq_bitree_get_value(t, pos));
+    printf("结点D的父结点值为: %c\n", seq_bitree_get_parent(t, 'D'));
+    
     return 0;
 }
