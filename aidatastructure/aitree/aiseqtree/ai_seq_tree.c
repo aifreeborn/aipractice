@@ -4,6 +4,7 @@
  *       Filename:  ai_seq_tree.c
  *
  *    Description:  二叉树的顺序存储结构  
+ *                      1.结点的编号从1开始;
  *
  *        Version:  1.0
  *        Created:  04/25/2020 05:25:43 PM
@@ -133,6 +134,99 @@ elem_t seq_bitree_get_parent(seq_bitree_t t, elem_t e)
             return t[(i + 1) / 2 - 1];
     return Nil;
 }
+
+elem_t seq_bitree_get_left_child(seq_bitree_t t, elem_t e)
+{
+    int i;
+
+    if (t[0] == Nil)
+        return Nil;
+    for (i = 1; i < MAX_TREE_SIZE; i++)
+        if (t[i] == e && (2 * i + 1) < MAX_TREE_SIZE)
+            return t[2 * i + 1];
+    return Nil;
+}
+
+elem_t seq_bitree_get_right_child(seq_bitree_t t, elem_t e)
+{
+    int i;
+
+    if (t[0] == Nil)
+        return Nil;
+    for (i = 1; i < MAX_TREE_SIZE; i++)
+        if (t[i] == e && (2 * i + 2) < MAX_TREE_SIZE)
+            return t[2 * i + 2];
+    return Nil;
+}
+
+elem_t seq_bitree_get_left_sibling(seq_bitree_t t, elem_t e)
+{
+    int i;
+
+    if (t[0] == Nil)
+        return Nil;
+    for (i = 1; i < MAX_TREE_SIZE; i++)
+        if (t[i] == e && i % 2 == 0)
+            return t[i - 1];
+    return Nil;
+}
+
+elem_t seq_bitree_get_right_sibling(seq_bitree_t t, elem_t e)
+{
+    int i;
+
+    if (t[0] == Nil)
+        return Nil;
+    for (i = 1; i < MAX_TREE_SIZE; i++)
+        if (t[i] == e && i % 2 == 1 && (i + 1) < MAX_TREE_SIZE)
+            return t[i + 1];
+    return Nil;
+}
+
+void seq_bitree_pre_traverse(seq_bitree_t t, int i)
+{
+    if (t[i] == Nil)
+        return;
+    printf("%c", t[i]);
+    if (t[2 * i + 1] != Nil)
+        seq_bitree_pre_traverse(t, 2 * i + 1);
+    if (t[2 * i + 2] != Nil)
+        seq_bitree_pre_traverse(t, 2 * i + 2);
+}
+
+void seq_bitree_mid_traverse(seq_bitree_t t, int i)
+{
+    if (t[i] == Nil)
+        return;
+    if (t[2 * i + 1] != Nil)
+        seq_bitree_mid_traverse(t, 2 * i + 1);
+    printf("%c", t[i]);
+    if (t[2 * i + 2] != Nil)
+        seq_bitree_mid_traverse(t, 2 * i + 2);
+}
+
+void seq_bitree_post_traverse(seq_bitree_t t, int i)
+{
+    if (t[i] == Nil)
+        return;
+    if (t[2 * i + 1] != Nil)
+        seq_bitree_post_traverse(t, 2 * i + 1);
+    if (t[2 * i + 2] != Nil)
+        seq_bitree_post_traverse(t, 2 * i + 2);
+    printf("%c", t[i]);
+}
+
+void seq_bitree_level_traverse(seq_bitree_t t)
+{
+    int i = MAX_TREE_SIZE - 1, j;
+
+    while (t[i] != Nil)
+        i--;
+    for (j = 0; j <= i; j++) {
+        if (t[j] != Nil)
+            printf("%c", t[j]);
+    }
+}
 /************************************ main ************************************/
 /*   
  *  使用的树为:
@@ -161,6 +255,23 @@ int main(int argc, char *argv[])
     };
     printf("第3层第3个节点的值为: %c\n", seq_bitree_get_value(t, pos));
     printf("结点D的父结点值为: %c\n", seq_bitree_get_parent(t, 'D'));
+    printf("结点B的左孩子为: %c\n", seq_bitree_get_left_child(t, 'B'));
+    printf("结点B的右孩子为: %c\n", seq_bitree_get_right_child(t, 'B'));
+    printf("结点C的左兄弟为: %c\n", seq_bitree_get_left_sibling(t, 'C'));
+    printf("结点B的右兄弟为: %c\n", seq_bitree_get_right_sibling(t, 'B'));
+
+    printf("前序遍历:");
+    seq_bitree_pre_traverse(t, 0);
+    printf("\n");
+    printf("中序遍历:");
+    seq_bitree_mid_traverse(t, 0);
+    printf("\n");
+    printf("后序遍历:");
+    seq_bitree_post_traverse(t, 0);
+    printf("\n");
+    printf("层序遍历:");
+    seq_bitree_level_traverse(t);
+    printf("\n");
     
     return 0;
 }
