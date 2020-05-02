@@ -77,9 +77,9 @@ void link_bitree_mid_traverse(link_bitree_t *t)
     if (t == NULL)
         return;
 
-    link_bitree_pre_traverse(t->lchild);
+    link_bitree_mid_traverse(t->lchild);
     printf("%c", t->data);
-    link_bitree_pre_traverse(t->rchild);
+    link_bitree_mid_traverse(t->rchild);
 }
 
 
