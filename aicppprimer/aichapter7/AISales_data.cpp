@@ -17,6 +17,11 @@
  */
 #include "AISales_data.h"
 
+AISales_data::AISales_data(std::istream &is)
+{
+    ai_sales_read(is, *this);
+}
+
 double AISales_data::avg_price() const
 {
     if (units_sold)
