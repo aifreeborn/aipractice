@@ -31,6 +31,35 @@ typedef struct {
     int num_edges;
 } mgraph_t;
 
+typedef enum {
+    AI_TRUE,
+    AI_FALSE
+} boolean_t;
+
+
+boolean_t visited[MAX_VERTEX];
+
+void ai_DFS(mgraph_t g, int i)
+{
+    int j;
+    visited[i] = AI_TRUE;
+    printf("%c ", g.vexs[i]);
+    for (j = 0; j < g.num_vertexs; j++) {
+        if (g.arc[i][j] == 1 && AI_FALSE == visited[j])
+            ai_DFS(g, j);
+    }
+}
+
+void ai_DFS_travers(mgraph_t g)
+{
+    int i;
+    for (i = 0; i < g.num_vertexs; i++)
+        visited[i] = AI_FALSE;
+    for (i = 0; i < g.num_vertexs; i++)
+        if (AI_FALSE == visited[i])
+            ai_DFS(g, i);
+}
+
 void ai_mgraph_created(mgraph_t *graph)
 {
     int i, j, k;
@@ -85,5 +114,8 @@ int main(int argc, char *argv[])
     ai_mgraph_created(&g);
     ai_mgraph_print(g);
 
+    printf("\n深度遍历：");
+    ai_DFS_travers(g);
+    printf("\n");
     return EXIT_SUCCESS;
 }
