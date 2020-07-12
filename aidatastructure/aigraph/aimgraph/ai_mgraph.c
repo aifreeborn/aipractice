@@ -17,6 +17,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define MAX_VERTEX 20
 // 代表无穷大的距离
@@ -35,6 +36,12 @@ typedef enum {
     AI_TRUE,
     AI_FALSE
 } boolean_t;
+
+typedef struct {
+    int data[MAX_VERTEX];
+    int front;
+    int rear;
+} ai_queue_t;
 
 
 boolean_t visited[MAX_VERTEX];
@@ -58,6 +65,69 @@ void ai_DFS_travers(mgraph_t g)
     for (i = 0; i < g.num_vertexs; i++)
         if (AI_FALSE == visited[i])
             ai_DFS(g, i);
+}
+
+static int ai_mgraph_init_queue(ai_queue_t *q)
+{
+    memset(q->data, 0, sizeof(q->data));
+    q->front = 0;
+    q->rear = 0;
+    return 0;
+}
+
+static int ai_mgraph_queue_empty(ai_queue_t q)
+{
+    if (q.front == q.rear)
+        return 1;
+    else
+        return 0;
+}
+
+static int ai_mgraph_enqueue(ai_queue_t *q, int e)
+{
+    if ((q->rear + 1) % MAX_VERTEX == q->front)
+        return -1;
+    q->data[q->rear] = e;
+    q->rear = (q->rear + 1) % MAX_VERTEX;
+
+    return 0;
+}
+
+static int ai_mgraph_dequeue(ai_queue_t *q, int *e)
+{
+    if (q->front == q->rear)
+        return 0;
+    *e = q->data[q->front];
+    q->front = (q->front + 1) % MAX_VERTEX;
+
+    return 0;
+}
+
+static void ai_mgraph_BFS_traverse(mgraph_t g)
+{
+    int i, j;
+    ai_queue_t q;
+
+    for (i = 0; i < g.num_vertexs; i++)
+        visited[i] = AI_FALSE;
+    ai_mgraph_init_queue(&q);
+    for (i = 0; i < g.num_vertexs; i++) {
+        if (AI_FALSE == visited[i]) {
+            visited[i] = AI_TRUE;
+            printf("%c ", g.vexs[i]);
+            ai_mgraph_enqueue(&q, i);
+            while (!ai_mgraph_queue_empty(q)) {
+                ai_mgraph_dequeue(&q, &i);
+                for (j = 0; j < g.num_vertexs; j++) {
+                    if (g.arc[i][j] == 1  && AI_FALSE == visited[j]) {
+                        visited[j] = AI_TRUE;
+                        printf("[%c] ", g.vexs[j]);
+                        ai_mgraph_enqueue(&q, j);
+                    }
+                }
+            }
+        }
+    }
 }
 
 void ai_mgraph_created(mgraph_t *graph)
@@ -116,6 +186,9 @@ int main(int argc, char *argv[])
 
     printf("\n深度遍历：");
     ai_DFS_travers(g);
+    printf("\n");
+    printf("\n广度优先遍历：");
+    ai_mgraph_BFS_traverse(g);
     printf("\n");
     return EXIT_SUCCESS;
 }
