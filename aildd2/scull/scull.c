@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/semaphore.h>
+#include <asm/uaccess.h>
 #include "scull.h"
 
 int scull_major = SCULL_MAJOR;
@@ -49,28 +50,141 @@ static int scull_trim(struct scull_dev *dev)
 
 static int scull_open(struct inode *inode, struct file *filep)
 {
+	struct scull_dev *dev = NULL;
 
+	dev = container_of(inode->i_cdev, struct scull_dev, cdev);
+	filep->private_data = dev;
+
+	if ((filep->f_flags & O_ACCMODE) == O_WRONLY) {
+		if (down_interruptible(&dev->sem))
+			return -ERESTARTSYS;
+		scull_trim(dev);
+		up(&dev->sem);
+	}
+
+	printk(KERN_INFO "scull_open success.\n");
 	return 0;
 }
 
 static int scull_release(struct inode *inode, struct file *filep)
 {
-
+	printk(KERN_INFO "scull_release success.\n");
 	return 0;
+}
+
+static struct scull_qset *scull_follow(struct scull_dev *dev, int n)
+{
+	struct scull_qset *qs = dev->data;
+
+	if (!qs) {
+		qs = dev->data = kmalloc(sizeof(struct scull_qset), GFP_KERNEL);
+		if (qs == NULL)
+			return NULL;
+		memset(qs, 0, sizeof(struct scull_qset));
+	}
+
+	while (n--) {
+		if (!qs->next) {
+			qs->next = kmalloc(sizeof(struct scull_qset), GFP_KERNEL);
+			if (qs->next == NULL)
+				return NULL;
+			memset(qs->next, 0, sizeof(struct scull_qset));
+		}
+		qs = qs->next;
+	}
+	return qs;
 }
 
 static ssize_t scull_read(struct file *filep, char __user *buff,
 		           size_t count, loff_t *offp)
 {
+	struct scull_dev *dev = filep->private_data;
+	struct scull_qset *dptr;
+	int quantum = dev->quantum;
+	int qset = dev->qset;
+	int item_size = quantum * qset;
+	int item, s_pos, q_pos, rest;
+	ssize_t retval = 0;
 
-	return 0;
+	if (down_interruptible(&dev->sem))
+		return -ERESTARTSYS;
+	if (*offp >= dev->size)
+		goto out;
+	if (*offp + count > dev->size)
+		count = dev->size - *offp;
+
+	item = (long)*offp / item_size;
+	rest = (long)*offp % item_size;
+	s_pos = rest / quantum;
+	q_pos = rest % quantum;
+
+	dptr = scull_follow(dev, item);
+	if (dptr == NULL || !dptr->data || !dptr->data[s_pos])
+		goto out;
+
+	if (count > quantum - q_pos)
+		count = quantum - q_pos;
+	if (copy_to_user(buff, dptr->data[s_pos] + q_pos, count)) {
+		retval = -EFAULT;
+		goto out;
+	}
+	*offp += count;
+	retval = count;
+
+out:
+	up(&dev->sem);
+	return retval;
 }
 
 static ssize_t scull_write(struct file *filep, const char __user *buff,
 		            size_t count, loff_t *offp)
 {
+	struct scull_dev *dev = filep->private_data;
+	struct scull_qset *dptr = NULL;
+	int quantum = dev->quantum;
+	int qset = dev->qset;
+	int item_size = quantum * qset;
+	int item, s_pos, q_pos, rest;
+	ssize_t retval = -ENOMEM;
 
-	return 0;
+	if (down_interruptible(&dev->sem))
+		return -ERESTARTSYS;
+
+	item = (long)*offp / item_size;
+	rest = (long)*offp % item_size;
+	s_pos = rest / quantum;
+	q_pos = rest % quantum;
+
+	dptr = scull_follow(dev, item);
+	if (dptr == NULL)
+		goto out;
+	if (!dptr->data) {
+		dptr->data = kmalloc(qset * sizeof(char *), GFP_KERNEL);
+		if (!dptr->data)
+			goto out;
+		memset(dptr->data, 0, qset * sizeof(char *));
+	}
+	if (!dptr->data[s_pos]) {
+		dptr->data[s_pos] = kmalloc(quantum, GFP_KERNEL);
+		if (!dptr->data[s_pos])
+			goto out;
+	}
+
+	if (count > quantum - q_pos)
+		count = quantum - q_pos;
+	if (copy_from_user(dptr->data[s_pos] + q_pos, buff, count)) {
+		retval = -EFAULT;
+		goto out;
+	}
+	*offp += count;
+	retval = count;
+
+	if (dev->size < *offp)
+		dev->size = *offp;
+
+out:
+	up(&dev->sem);
+	return retval;
 }
 
 static long scull_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
