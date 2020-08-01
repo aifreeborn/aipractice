@@ -180,7 +180,7 @@ static ssize_t scull_write(struct file *filep, const char __user *buff,
 	retval = count;
 
 	if (dev->size < *offp)
-		dev->size = *offp;
+		dev->size = *offp + 1;
 
 out:
 	up(&dev->sem);
