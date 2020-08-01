@@ -6,7 +6,7 @@ mode="664"
 group="linux"
 user="linux"
 
-#sudo /sbin/insmod ./${module}.ko $* || exit 1
+sudo /sbin/insmod ./${module}.ko $* || exit 1
 
 major=$(awk "\$2==\"${module}\" {print \$1}" /proc/devices)
 echo "major: ${major}"

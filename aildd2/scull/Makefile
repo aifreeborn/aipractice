@@ -1,3 +1,13 @@
+DEBUG = y
+
+ifeq ($(DEBUG), y)
+	DEBFLAGS = -O -g -DSCULL_DEBUG
+else
+	DEBFLAGS = -O2
+endif
+
+KBUILD_CFLAGS += $(DEBFLAGS)
+
 ifeq ($(KERNELRELEASE), )
 KERNELDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)

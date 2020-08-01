@@ -62,13 +62,13 @@ static int scull_open(struct inode *inode, struct file *filep)
 		up(&dev->sem);
 	}
 
-	printk(KERN_INFO "scull_open success.\n");
+	PDEBUG("scull_open success.\n");
 	return 0;
 }
 
 static int scull_release(struct inode *inode, struct file *filep)
 {
-	printk(KERN_INFO "scull_release success.\n");
+	PDEBUG("scull_release success.\n");
 	return 0;
 }
 
@@ -220,7 +220,7 @@ static void scull_setup_cdev(struct scull_dev *dev, int index)
 	dev->cdev.ops = &scull_fops;
 	err = cdev_add(&dev->cdev, devno, 1);
 	if (err)
-		printk(KERN_NOTICE "Error %d adding scull%d\n", err, index);
+		PDEBUG("Error %d adding scull%d\n", err, index);
 }
 
 static void scull_cleanup_module(void)
@@ -252,7 +252,7 @@ static int __init scull_init(void)
 		scull_major = MAJOR(dev);
 	}
 	if (result < 0) {
-		printk(KERN_WARNING "scull: can't get major %d\n", scull_major);
+		PDEBUG("scull: can't get major %d\n", scull_major);
 		return result;
 	}
 
@@ -271,7 +271,7 @@ static int __init scull_init(void)
 		scull_setup_cdev(&scull_devices[i], i);
 	}
 
-	printk(KERN_ALERT "hello scull_init\n");
+	PDEBUG("hello scull_init");
 	return 0;
 fail:
 	scull_cleanup_module();
@@ -281,7 +281,7 @@ fail:
 static void __exit scull_exit(void)
 {
 	scull_cleanup_module();
-	printk(KERN_ALERT "goodbye scull_exit\n");
+	PDEBUG("goodbye scull_exit\n");
 }
 
 module_init(scull_init);
