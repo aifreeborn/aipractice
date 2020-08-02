@@ -9,6 +9,7 @@
 #include <linux/errno.h>
 #include <linux/semaphore.h>
 #include <asm/uaccess.h>
+#include <linux/proc_fs.h>
 #include "scull.h"
 
 int scull_major = SCULL_MAJOR;
@@ -47,6 +48,49 @@ static int scull_trim(struct scull_dev *dev)
 	dev->data = NULL;
 	return 0;
 }
+
+#ifdef SCULL_DEBUG
+
+static int scull_read_procmem(char *buf, char **start, off_t offset,
+							  int count, int *eof, void *data)
+{
+	int i, j, len = 0;
+	int limit = count - 80;
+
+	for (i = 0; i < scull_nr_devs && len <= limit; i++) {
+		struct scull_dev *d = &scull_devices[i];
+		struct scull_qset *qs = d->data;
+		if (down_interruptible(&d->sem))
+			return -ERESTARTSYS;
+		len += sprintf(buf + len, "\nDevice %d: qset %d, q %d, sz %ld\n",
+				       i, d->qset, d->quantum, d->size);
+		for (; qs && len <= limit; qs = qs->next) {
+			len += sprintf(buf + len, " item at %p, qset at %p\n",
+					       qs, qs->data);
+			if (qs->data && !qs->next)
+				for (j = 0; j < d->qset; j++) {
+					if (qs->data[j])
+						len += sprintf(buf + len, "    %4d: %8p\n",
+								       j, qs->data[j]);
+				}
+		}
+		up(&scull_devices[i].sem);
+	}
+	*eof = 1;
+	return len;
+}
+
+static void scull_create_proc(void)
+{
+	create_proc_read_entry("scullmem", 0, NULL, scull_read_procmem, NULL);
+}
+
+static void scull_remove_proc(void)
+{
+	remove_proc_entry("scullmem", NULL);
+}
+
+#endif  /* SCULL_DEBUG */
 
 static int scull_open(struct inode *inode, struct file *filep)
 {
@@ -235,6 +279,10 @@ static void scull_cleanup_module(void)
 		}
 		kfree(scull_devices);
 	}
+
+#ifdef SCULL_DEBUG
+	scull_remove_proc();
+#endif
 	unregister_chrdev_region(devno, scull_nr_devs);
 }
 
@@ -271,6 +319,9 @@ static int __init scull_init(void)
 		scull_setup_cdev(&scull_devices[i], i);
 	}
 
+#ifdef SCULL_DEBUG
+	scull_create_proc();
+#endif
 	PDEBUG("hello scull_init");
 	return 0;
 fail:
