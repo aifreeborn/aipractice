@@ -18,7 +18,7 @@ modules:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
 
 clean:
-	rm -rf *.o *.order *.symvers *.mod.c
+	rm -rf *.o modules.order Module.symvers *.mod.* .tmp_versions .*.cmd
 
 clobber: clean
 	rm *.ko
