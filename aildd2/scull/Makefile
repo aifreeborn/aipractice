@@ -23,5 +23,6 @@ clean:
 clobber: clean
 	rm *.ko
 else
+	scull-objs := main.o pipe.o
 	obj-m := scull.o
 endif

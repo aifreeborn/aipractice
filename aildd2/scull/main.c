@@ -11,6 +11,8 @@
 #include <asm/uaccess.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <asm/system.h>
+#include <linux/fcntl.h>
 #include "scull.h"
 
 int scull_major = SCULL_MAJOR;
@@ -27,7 +29,7 @@ module_param(scull_quantum, int, S_IRUGO);
 module_param(scull_qset, int, S_IRUGO);
 
 
-static int scull_trim(struct scull_dev *dev)
+int scull_trim(struct scull_dev *dev)
 {
 	struct scull_qset *next, *dptr;
 	int qset = dev->qset;
@@ -210,7 +212,7 @@ static struct scull_qset *scull_follow(struct scull_dev *dev, int n)
 	return qs;
 }
 
-static ssize_t scull_read(struct file *filep, char __user *buff,
+ssize_t scull_read(struct file *filep, char __user *buff,
 		           size_t count, loff_t *offp)
 {
 	struct scull_dev *dev = filep->private_data;
@@ -251,7 +253,7 @@ out:
 	return retval;
 }
 
-static ssize_t scull_write(struct file *filep, const char __user *buff,
+ssize_t scull_write(struct file *filep, const char __user *buff,
 		            size_t count, loff_t *offp)
 {
 	struct scull_dev *dev = filep->private_data;
@@ -302,13 +304,106 @@ out:
 	return retval;
 }
 
-static long scull_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
+long scull_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
+	int err = 0, tmp;
+	int retval = 0;
 
-	return 0;
+	if (_IOC_TYPE(cmd) != SCULL_IOC_MAGIC)
+		return -ENOTTY;
+	if (_IOC_NR(cmd) > SCULL_IOC_MAXNR)
+		return -ENOTTY;
+
+	if (_IOC_DIR(cmd) & _IOC_READ)
+		err = !access_ok(VERIFY_WRITE, (void __user *)arg, _IOC_SIZE(cmd));
+	else if (_IOC_DIR(cmd) & _IOC_WRITE)
+		err =  !access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
+	if (err)
+		return -EFAULT;
+
+	switch(cmd) {
+	case SCULL_IOCRESET:
+		scull_quantum = SCULL_QUANTUM;
+		scull_qset = SCULL_QSET;
+		break;
+
+	case SCULL_IOCSQUANTUM: /* Set: arg points to the value */
+		if (! capable (CAP_SYS_ADMIN))
+			return -EPERM;
+		retval = __get_user(scull_quantum, (int __user *)arg);
+		break;
+
+	case SCULL_IOCTQUANTUM: /* Tell: arg is the value */
+		if (! capable (CAP_SYS_ADMIN))
+			return -EPERM;
+		scull_quantum = arg;
+		break;
+
+	case SCULL_IOCGQUANTUM: /* Get: arg is pointer to result */
+		retval = __put_user(scull_quantum, (int __user *)arg);
+		break;
+
+	case SCULL_IOCQQUANTUM: /* Query: return it (it's positive) */
+		return scull_quantum;
+
+	case SCULL_IOCXQUANTUM: /* eXchange: use arg as pointer */
+		if (! capable (CAP_SYS_ADMIN))
+			return -EPERM;
+		tmp = scull_quantum;
+		retval = __get_user(scull_quantum, (int __user *)arg);
+		if (retval == 0)
+			retval = __put_user(tmp, (int __user *)arg);
+		break;
+
+	case SCULL_IOCHQUANTUM: /* sHift: like Tell + Query */
+		if (! capable (CAP_SYS_ADMIN))
+			return -EPERM;
+		tmp = scull_quantum;
+		scull_quantum = arg;
+		return tmp;
+
+	case SCULL_IOCSQSET:
+		if (! capable (CAP_SYS_ADMIN))
+			return -EPERM;
+		retval = __get_user(scull_qset, (int __user *)arg);
+		break;
+
+	case SCULL_IOCTQSET:
+		if (! capable (CAP_SYS_ADMIN))
+			return -EPERM;
+		scull_qset = arg;
+		break;
+
+	case SCULL_IOCGQSET:
+		retval = __put_user(scull_qset, (int __user *)arg);
+		break;
+
+	case SCULL_IOCQQSET:
+		return scull_qset;
+
+	case SCULL_IOCXQSET:
+		if (! capable (CAP_SYS_ADMIN))
+			return -EPERM;
+		tmp = scull_qset;
+		retval = __get_user(scull_qset, (int __user *)arg);
+		if (retval == 0)
+			retval = put_user(tmp, (int __user *)arg);
+		break;
+
+	case SCULL_IOCHQSET:
+		if (! capable (CAP_SYS_ADMIN))
+			return -EPERM;
+		tmp = scull_qset;
+		scull_qset = arg;
+		return tmp;
+
+	default:  /* redundant, as cmd was checked against MAXNR */
+		return -ENOTTY;
+	}
+	return retval;
 }
 
-static loff_t scull_llseek(struct file *filep, loff_t off, int whence)
+loff_t scull_llseek(struct file *filep, loff_t off, int whence)
 {
 
 	return 0;
@@ -355,6 +450,8 @@ static void scull_cleanup_module(void)
 	scull_remove_proc();
 #endif
 	unregister_chrdev_region(devno, scull_nr_devs);
+
+	scull_p_cleanup();
 }
 
 static int __init scull_init(void)
@@ -389,6 +486,9 @@ static int __init scull_init(void)
 		sema_init(&scull_devices[i].sem, 1);
 		scull_setup_cdev(&scull_devices[i], i);
 	}
+
+	dev = MKDEV(scull_minor, scull_minor + scull_nr_devs);
+	dev += scull_p_init(dev);
 
 #ifdef SCULL_DEBUG
 	scull_create_proc();
