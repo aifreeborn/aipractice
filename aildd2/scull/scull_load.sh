@@ -19,3 +19,16 @@ sudo /bin/chown ${user} /dev/${device}[0-3]
 sudo /bin/chgrp ${group} /dev/${device}[0-3]
 sudo /bin/chmod ${mode} /dev/${device}[0-3]
 /bin/ls -l /dev/${device}[0-3]
+
+#scullpipe
+sudo rm -f /dev/${device}pipe[0-3]
+for i in {0..3}
+do
+	sudo /bin/mknod /dev/${device}pipe${i} c ${major} $((${i} + 4))
+done
+sudo /bin/chown ${user} /dev/${device}pipe[0-3]
+sudo /bin/chgrp ${group} /dev/${device}pipe[0-3]
+sudo /bin/chmod ${mode} /dev/${device}pipe[0-3]
+/bin/ls -l /dev/${device}pipe[0-3]
+
+
