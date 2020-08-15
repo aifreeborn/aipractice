@@ -405,8 +405,28 @@ long scull_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 loff_t scull_llseek(struct file *filep, loff_t off, int whence)
 {
+	struct scull_dev *dev = filep->private_data;
+	loff_t newpos;
 
-	return 0;
+	switch (whence) {
+	case 0: /* SEEK_SET */
+		newpos = off;
+		break;
+
+	case 1: /* SEEK_CUR */
+		newpos = filep->f_pos + off;
+		break;
+
+	case 2: /* SEEK_END */
+		newpos = dev->size + off;
+		break;
+
+	default: /* can't happen */
+		return -EINVAL;
+	}
+	if (newpos < 0) return -EINVAL;
+	filep->f_pos = newpos;
+	return newpos;
 }
 
 struct file_operations scull_fops = {
@@ -487,7 +507,7 @@ static int __init scull_init(void)
 		scull_setup_cdev(&scull_devices[i], i);
 	}
 
-	dev = MKDEV(scull_minor, scull_minor + scull_nr_devs);
+	dev = MKDEV(scull_major, scull_minor + scull_nr_devs);
 	dev += scull_p_init(dev);
 
 #ifdef SCULL_DEBUG

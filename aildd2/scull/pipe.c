@@ -11,6 +11,7 @@
 #include <linux/cdev.h>
 #include <asm/uaccess.h>
 #include <linux/sched.h>
+#include <linux/poll.h>
 #include "scull.h"
 
 struct scull_pipe {
@@ -31,6 +32,7 @@ dev_t scull_p_devno;
 module_param(scull_p_nr_devs, int, 0);
 module_param(scull_p_buffer, int, 0);
 
+static int scull_p_fasync(int fd, struct file *filp, int mode);
 static struct scull_pipe *scull_p_devices;
 
 static int spacefree(struct scull_pipe *dev);
@@ -146,8 +148,23 @@ static ssize_t scull_p_write(struct file *filp, const char __user *buf, size_t c
 
 static unsigned int scull_p_poll(struct file *filp, struct poll_table_struct *wait)
 {
+	struct scull_pipe *dev = filp->private_data;
+	unsigned int mask = 0;
 
-	return 0;
+	/*
+	 * The buffer is circular; it is considered full
+	 * if "wp" is right behind "rp" and empty if the
+	 * two are equal.
+	 */
+	down(&dev->sem);
+	poll_wait(filp, &dev->inq,  wait);
+	poll_wait(filp, &dev->outq, wait);
+	if (dev->rp != dev->wp)
+		mask |= POLLIN | POLLRDNORM;	/* readable */
+	if (spacefree(dev))
+		mask |= POLLOUT | POLLWRNORM;	/* writable */
+	up(&dev->sem);
+	return mask;
 }
 
 static int scull_p_open(struct inode *inode, struct file *filp)
@@ -183,14 +200,28 @@ static int scull_p_open(struct inode *inode, struct file *filp)
 
 static int scull_p_release(struct inode *inode, struct file *filp)
 {
+	struct scull_pipe *dev = filp->private_data;
 
+	/* remove this filp from the asynchronously notified filp's */
+	scull_p_fasync(-1, filp, 0);
+	down(&dev->sem);
+	if (filp->f_mode & FMODE_READ)
+		dev->nreaders--;
+	if (filp->f_mode & FMODE_WRITE)
+		dev->nwriters--;
+	if (dev->nreaders + dev->nwriters == 0) {
+		kfree(dev->buffer);
+		dev->buffer = NULL; /* the other fields are not checked on open */
+	}
+	up(&dev->sem);
 	return 0;
 }
 
 static int scull_p_fasync(int fd, struct file *filp, int mode)
 {
-
-	return 0;
+	struct scull_pipe *dev = filp->private_data;
+	
+	return fasync_helper(fd, filp, mode, &dev->async_queue);
 }
 
 /*
@@ -264,3 +295,5 @@ void scull_p_cleanup(void)
 	unregister_chrdev_region(scull_p_devno, scull_p_nr_devs);
 	scull_p_devices = NULL;
 }
+
+MODULE_LICENSE("Dual BSD/GPL");
