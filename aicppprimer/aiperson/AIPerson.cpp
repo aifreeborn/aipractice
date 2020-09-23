@@ -16,4 +16,17 @@
  * =============================================================================
  */
 #include <iostream>
+#include "AIPerson.h"
 
+
+std::istream &read(std::istream &is, AIPerson &per)
+{
+    is >> per.name >> per.address;
+    return is;
+}
+
+std::ostream &print(std::ostream &os, AIPerson &per)
+{
+    os << per.get_name() << per.get_address();
+    return os;
+}
