@@ -1,0 +1,17 @@
+CXX = g++
+CXXFLAGS = -std=c++0x -I..
+
+.PHONY: all clean
+all: $(OBJECTS) clean
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+%.exe: %.o
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+clean:
+	rm -rf *.o *.stackdump
+
+clobber: clean
+	rm -rf *.exe
