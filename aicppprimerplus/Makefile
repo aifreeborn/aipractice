@@ -4,5 +4,5 @@ include ./ailibs/Makefile_template
 
 LOCALFLAGS := -I.
 
-aimain.exe : aimain.o
+aimain.exe : aiqueue.o aimain.o
 	$(CXX) $(CXXFLAGS) $(LOCALFLAGS) $^ -o $@
